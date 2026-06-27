@@ -117,6 +117,9 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        # Chrome Private Network Access: Requests von (sicheren) Webseiten auf
+        # lokale Adressen (127.0.0.1) erfordern diese Freigabe im Preflight.
+        self.send_header("Access-Control-Allow-Private-Network", "true")
 
     def log_message(self, fmt, *args):
         log.debug("%s - %s", self.address_string(), fmt % args)

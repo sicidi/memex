@@ -63,6 +63,29 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === "ingest") {
+    // Seiten-Ingest aus dem Content-Script: hier im Service Worker fetchen,
+    // damit weder Seiten-CSP noch Mixed-Content/PNA den Aufruf blockieren.
+    (async () => {
+      try {
+        const resp = await fetch(LOCAL_BASE + "/ingest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(msg.payload || {})
+        });
+        if (!resp.ok) {
+          sendResponse({ ok: false, status: resp.status });
+          return;
+        }
+        sendResponse({ ok: true, info: await resp.json() });
+      } catch (e) {
+        console.debug("[Memex] /ingest nicht erreichbar:", e.message);
+        sendResponse({ ok: false, error: String(e) });
+      }
+    })();
+    return true; // asynchrone Antwort
+  }
+
   if (msg.type === "ping-local") {
     fetch(LOCAL_BASE + "/ping")
       .then(r => r.json())

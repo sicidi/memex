@@ -84,19 +84,28 @@ if (window.__memexContentLoaded) {
     return out;
   }
 
-  async function send(payload) {
-    try {
-      const resp = await fetch(LOCAL_BASE + "/ingest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (!resp.ok) return null;
-      return await resp.json();
-    } catch (e) {
-      console.debug("[SP-Scraper] Lokaler Server nicht erreichbar:", e.message);
-      return null;
-    }
+  // Wichtig: Der POST an die lokale App MUSS über den Service Worker laufen.
+  // Ein direkter fetch() aus dem Seitenkontext wird auf SharePoint von der
+  // Content-Security-Policy (connect-src), Mixed-Content und Private Network
+  // Access blockiert. Der Service Worker (chrome-extension://) unterliegt der
+  // Seiten-CSP nicht und darf via host_permissions auf 127.0.0.1 zugreifen.
+  function send(payload) {
+    return new Promise(resolve => {
+      try {
+        chrome.runtime.sendMessage({ type: "ingest", payload }, resp => {
+          if (chrome.runtime.lastError) {
+            console.debug("[Memex] Ingest-Nachricht fehlgeschlagen:",
+                          chrome.runtime.lastError.message);
+            resolve(null);
+            return;
+          }
+          resolve(resp && resp.ok ? resp.info : null);
+        });
+      } catch (e) {
+        console.debug("[Memex] sendMessage-Fehler:", e.message);
+        resolve(null);
+      }
+    });
   }
 
   async function capture(reason) {
