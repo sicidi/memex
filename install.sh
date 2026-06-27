@@ -1,6 +1,7 @@
 #!/bin/bash
 # Installations-Skript für Memex (macOS).
-# Erstellt ein Python-venv, installiert rumps und legt einen launchd-Autostart an (optional).
+# Erstellt ein Python-venv (Backend), baut die native SwiftUI-App (Memex.app)
+# und legt optional einen launchd-Autostart an.
 
 set -euo pipefail
 
@@ -16,9 +17,12 @@ fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$HERE/app"
+MACOS_DIR="$HERE/macos"
 BASE_DIR="$HOME/Library/Application Support/Memex"
 VENV_DIR="$BASE_DIR/venv"
 PLIST_PATH="$HOME/Library/LaunchAgents/com.local.memex.plist"
+APP_BUNDLE="$HOME/Applications/Memex.app"
+APP_BIN="$APP_BUNDLE/Contents/MacOS/Memex"
 
 echo "== Memex – Installer =="
 echo "App-Verzeichnis: $APP_DIR"
@@ -55,23 +59,23 @@ if [ "$MAC_ARCH" = "arm64" ]; then
   fi
 fi
 
-# ---- Tkinter Check -------------------------------------------------------
+# ---- Native SwiftUI-App bauen --------------------------------------------
 echo
-echo "Prüfe tkinter..."
-if "$VENV_DIR/bin/python" -c "import tkinter" 2>/dev/null; then
-  echo "tkinter: OK"
-else
-  PY_MIN="$("$VENV_DIR/bin/python" -c 'import sys; print(sys.version_info.minor)')"
-  echo
-  echo "FEHLER: tkinter fehlt – das Suchfenster wird nicht funktionieren!"
-  if command -v brew >/dev/null 2>&1; then
-    echo "Lösung (Homebrew):"
-    echo "  brew install python-tk@3.${PY_MIN}"
-    echo "Danach install.sh erneut ausführen."
-  else
-    echo "Lösung: Python von https://www.python.org installieren (enthält tkinter)."
-  fi
+if ! command -v swift >/dev/null 2>&1; then
+  echo "FEHLER: 'swift' nicht gefunden – die native App kann nicht gebaut werden." >&2
+  echo "        Bitte Xcode oder die Command Line Tools installieren:  xcode-select --install" >&2
+  exit 1
 fi
+echo "Baue native App (Memex.app) …"
+"$MACOS_DIR/build_app.sh" --install
+echo "Installiert: $APP_BUNDLE"
+
+# ---- backend.conf schreiben (die App liest daraus die Backend-Pfade) -----
+cat > "$BASE_DIR/backend.conf" <<CONF
+PYTHON=$VENV_DIR/bin/python
+SERVE=$APP_DIR/serve.py
+CONF
+echo "backend.conf geschrieben: $BASE_DIR/backend.conf"
 
 echo
 read -r -p "Launchd-Autostart beim Login einrichten? [y/N] " AUTOSTART
@@ -92,10 +96,8 @@ if [[ "${AUTOSTART:-}" =~ ^[Yy]$ ]]; then
   <key>Label</key><string>com.local.memex</string>
   <key>ProgramArguments</key>
   <array>
-    <string>$VENV_DIR/bin/python</string>
-    <string>$APP_DIR/main.py</string>
+    <string>$APP_BIN</string>
   </array>
-  <key>WorkingDirectory</key><string>$APP_DIR</string>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><false/>
   <key>StandardOutPath</key><string>$HOME/Library/Logs/memex.out.log</string>
@@ -109,14 +111,14 @@ PLIST
   echo "Autostart aktiv. Zum Deaktivieren:  launchctl unload '$PLIST_PATH'"
 else
   echo "Autostart übersprungen. Du kannst Memex jederzeit starten mit:"
-  echo "  '$VENV_DIR/bin/python' '$APP_DIR/main.py'"
+  echo "  open '$APP_BUNDLE'"
 fi
 
 echo
 echo "== Fertig =="
 echo "Nächste Schritte:"
 echo "  1) Memex starten (falls nicht per launchd):"
-echo "     '$VENV_DIR/bin/python' '$APP_DIR/main.py'"
+echo "     open '$APP_BUNDLE'"
 echo "  2) Chrome öffnen -> chrome://extensions -> Entwicklermodus aktivieren"
 echo "  3) 'Entpackte Erweiterung laden' und den Ordner 'chrome-extension' wählen."
 echo "  4) Das M-Icon in der Menüleiste -> 'Suche öffnen…'"
