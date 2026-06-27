@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Memex</title>
+  <style>
+    :root {
+      --bg: #faf8ff;
+      --ink: #1e1b4b;
+      --muted: #6b7280;
+      --accent: #7c3aed;
+      --accent-dark: #4c1d95;
+      --ok-bg: #ecfdf5;
+      --ok-fg: #047857;
+      --bad-bg: #fef2f2;
+      --bad-fg: #b91c1c;
+      --card: #ffffff;
+      --border: #e7e5f1;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      width: 340px;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    header {
+      padding: 14px 16px 10px 16px;
+      background: linear-gradient(135deg, #4c1d95 0%, #7c3aed 55%, #ec4899 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header .logo {
+      font-family: Georgia, "New York", serif;
+      font-weight: 700;
+      font-size: 22px;
+      line-height: 1;
+      width: 34px; height: 34px;
+      background: rgba(255,255,255,0.18);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    header .title { font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+    header .subtitle { font-size: 11px; opacity: .85; }
+
+    main { padding: 12px 16px 16px 16px; }
+    .status {
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      display: flex; align-items: center; gap: 6px;
+      border: 1px solid transparent;
+    }
+    .ok { background: var(--ok-bg); color: var(--ok-fg); border-color: #a7f3d0; }
+    .bad { background: var(--bad-bg); color: var(--bad-fg); border-color: #fecaca; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+    label.field { font-size: 11px; color: var(--muted); display: block; margin-top: 14px; margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: .4px; }
+    textarea {
+      width: 100%; box-sizing: border-box; height: 90px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+      font-size: 12px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--ink);
+      resize: vertical;
+    }
+    textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+    .hint { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+    .hint code { background: #ede9fe; padding: 1px 4px; border-radius: 3px; font-size: 10.5px; color: var(--accent-dark); }
+    .row { display: flex; gap: 8px; margin-top: 12px; }
+    button {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--ink);
+      cursor: pointer;
+      transition: background .12s ease;
+    }
+    button:hover { background: #f3f0ff; }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent-dark);
+      color: white;
+    }
+    button.primary:hover { background: var(--accent-dark); }
+
+    footer.imprint {
+      border-top: 1px solid var(--border);
+      padding: 10px 16px 12px 16px;
+      font-size: 10.5px;
+      color: var(--muted);
+      line-height: 1.45;
+      text-align: center;
+      background: #f6f3ff;
+    }
+    footer.imprint strong { color: var(--ink); font-weight: 600; }
+    footer.imprint a { color: var(--accent-dark); text-decoration: none; }
+    footer.imprint a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">M</div>
+    <div>
+      <div class="title">Memex</div>
+      <div class="subtitle">Dein lokales SharePoint-Archiv</div>
+    </div>
+  </header>
+
+  <main>
+    <div id="status" class="status">
+      <span class="dot"></span>
+      <span>Prüfe lokale App …</span>
+    </div>
+
+    <label class="field" for="domains">On-Premise-Domains</label>
+    <textarea id="domains" placeholder="groupecgi.sharepoint.com&#10;intranet.ent.cgi.com"></textarea>
+    <div class="hint">Nur Hostname, ohne http(s)://. Pro Zeile eine Domain.<br>Voreingestellt: <code>groupecgi.sharepoint.com</code>, <code>intranet.ent.cgi.com</code>.</div>
+
+    <div class="row">
+      <button id="save" class="primary">Speichern</button>
+      <button id="ping">Verbindung testen</button>
+    </div>
+  </main>
+
+  <footer class="imprint">
+    <div>Memex &middot; v1.1.0 &middot; Alle Daten bleiben lokal.</div>
+    <div>&copy; <strong>Katrin Schwabel</strong> &middot;
+      <a href="mailto:katrin.schwabel@cgi.com">katrin.schwabel@cgi.com</a>
+    </div>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

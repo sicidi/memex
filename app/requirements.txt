@@ -1,0 +1,9 @@
+rumps>=0.4.0
+
+# Optional: Text-Extraktion aus heruntergeladenen Dateien. Nicht strikt nötig;
+# ohne diese Pakete werden die Dateien trotzdem lokal gespeichert, nur nicht
+# per Volltext durchsuchbar.
+pypdf>=4.0
+python-docx>=1.1
+python-pptx>=0.6.23
+openpyxl>=3.1

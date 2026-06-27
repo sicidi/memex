@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Build-Output (SwiftUI-App, künftig)
+.build/
+build/
+*.xcuserstate
+DerivedData/
+
+# Lokale Daten / Logs
+*.log

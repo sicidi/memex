@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Memex – Local SharePoint Archive",
+  "version": "1.1.0",
+  "author": "Katrin Schwabel <katrin.schwabel@cgi.com>",
+  "description": "Sendet besuchte SharePoint-Seiten und deren Verlinkungen an die lokale Memex-App. Alles bleibt auf deinem Mac. © Katrin Schwabel.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.sharepoint.com/*",
+    "*://*.sharepoint-df.com/*",
+    "*://*/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.sharepoint.com/*",
+        "*://*.sharepoint-df.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Memex",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
