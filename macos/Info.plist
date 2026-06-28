@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>            <string>Memex</string>
+    <key>CFBundleDisplayName</key>     <string>Memex</string>
+    <key>CFBundleIdentifier</key>      <string>com.local.memex</string>
+    <key>CFBundleExecutable</key>      <string>Memex</string>
+    <key>CFBundlePackageType</key>     <string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>2.0.0</string>
+    <key>CFBundleVersion</key>         <string>2</string>
+    <key>CFBundleIconFile</key>        <string>AppIcon</string>
+    <key>LSMinimumSystemVersion</key>  <string>15.0</string>
+    <key>NSPrincipalClass</key>        <string>NSApplication</string>
+    <key>NSHighResolutionCapable</key> <true/>
+    <!-- Reine Menüleisten-App: kein Dock-Icon, kein Hauptmenü beim Start. -->
+    <key>LSUIElement</key>             <true/>
+    <key>NSHumanReadableCopyright</key><string>© Katrin Schwabel · katrin.schwabel@cgi.com</string>
+</dict>
+</plist>

@@ -1,8 +1,8 @@
-rumps>=0.4.0
-
-# Optional: Text-Extraktion aus heruntergeladenen Dateien. Nicht strikt nötig;
-# ohne diese Pakete werden die Dateien trotzdem lokal gespeichert, nur nicht
-# per Volltext durchsuchbar.
+# Die Menüleiste/Oberfläche ist jetzt nativ (SwiftUI, siehe macos/). Das
+# Python-Backend (serve.py) braucht nur die Standardbibliothek; die folgenden
+# Pakete sind optional für die Text-Extraktion aus heruntergeladenen Dateien.
+# Ohne sie werden Dateien trotzdem gespeichert, nur nicht per Volltext
+# durchsuchbar.
 pypdf>=4.0
 python-docx>=1.1
 python-pptx>=0.6.23

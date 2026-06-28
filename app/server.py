@@ -117,6 +117,9 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        # Chrome Private Network Access: Requests von (sicheren) Webseiten auf
+        # lokale Adressen (127.0.0.1) erfordern diese Freigabe im Preflight.
+        self.send_header("Access-Control-Allow-Private-Network", "true")
 
     def log_message(self, fmt, *args):
         log.debug("%s - %s", self.address_string(), fmt % args)
@@ -161,6 +164,33 @@ class _Handler(BaseHTTPRequestHandler):
             q = (params.get("q") or [""])[0]
             limit = int((params.get("limit") or ["50"])[0])
             return self._json(200, {"results": _db.search(q, limit=limit)})
+        if parsed.path == "/page":
+            params = parse_qs(parsed.query)
+            try:
+                pid = int((params.get("id") or [""])[0])
+            except ValueError:
+                return self._json(400, {"error": "id erforderlich"})
+            page = _db.get_page(pid)
+            if page is None:
+                return self._json(404, {"error": "page not found"})
+            return self._json(200, page)
+        if parsed.path == "/file":
+            params = parse_qs(parsed.query)
+            try:
+                fid = int((params.get("id") or [""])[0])
+            except ValueError:
+                return self._json(400, {"error": "id erforderlich"})
+            f = _db.get_file(fid)
+            if f is None:
+                return self._json(404, {"error": "file not found"})
+            return self._json(200, f)
+        if parsed.path == "/links":
+            params = parse_qs(parsed.query)
+            try:
+                pid = int((params.get("page_id") or [""])[0])
+            except ValueError:
+                return self._json(400, {"error": "page_id erforderlich"})
+            return self._json(200, {"links": _db.links_for_page(pid)})
         return self._json(404, {"error": "not found"})
 
     # ----- POST -------------------------------------------------------
@@ -175,6 +205,10 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._handle_ingest_page()
             if parsed.path == "/ingest_file":
                 return self._handle_ingest_file(parsed.query)
+            if parsed.path == "/delete":
+                return self._handle_delete()
+            if parsed.path == "/pause":
+                return self._handle_pause()
             return self._json(404, {"error": "not found"})
         except ValueError as e:
             return self._json(400, {"error": str(e)})
@@ -307,6 +341,27 @@ class _Handler(BaseHTTPRequestHandler):
                 _db.mark_link(src, url, status="fetched_file", target_file_id=fid)
 
         return self._json(200, {"ok": True, "id": fid, "local_path": str(path)})
+
+    def _handle_delete(self):
+        data = self._read_json()
+        kind = (data.get("kind") or "").strip()
+        try:
+            item_id = int(data.get("id"))
+        except (TypeError, ValueError):
+            raise ValueError("id erforderlich")
+        if kind == "page":
+            _db.delete_page(item_id)
+        elif kind == "file":
+            _db.delete_file(item_id)
+        else:
+            raise ValueError("kind muss 'page' oder 'file' sein")
+        return self._json(200, {"ok": True})
+
+    def _handle_pause(self):
+        data = self._read_json()
+        value = bool(data.get("value"))
+        set_paused(value)
+        return self._json(200, {"ok": True, "paused": is_paused()})
 
     # ----- util -------------------------------------------------------
     def _source_page_id(self, source_url: str) -> int | None:

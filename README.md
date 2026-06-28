@@ -23,11 +23,13 @@ Und wichtig: Nichts davon verlässt deinen Mac.
   Anschließend lädt sie im Hintergrund die verlinkten Ziele mit deinen
   Browser-Cookies nach. HTML-Seiten werden als Seiten gespeichert;
   PDF/Office/Bilder/Textdateien werden als Dateien abgelegt.
-* **Menüleisten-App (Python + rumps)** – nimmt alles entgegen und speichert es
-  lokal. In der Menüleiste erscheint ein schlichtes „M"-Symbol.
-* **Such-Fenster** – hübsche Tkinter-UI mit Live-Suche, Filter-Chips, Vorschau
-  und einem Detail-Viewer mit Tabs für Text, HTML-Quelltext, Links und
-  Metadaten. Für Dateien wahlweise Quick Look.
+* **Native macOS-App (SwiftUI)** – `Memex.app` zeigt ein schlichtes „M" in der
+  Menüleiste und startet im Hintergrund das Python-Backend (lokaler HTTP-Server
+  + SQLite/FTS5 + Datei-Textextraktion). Beim Beenden wird das Backend sauber
+  mitgestoppt.
+* **Such-Fenster** – natives SwiftUI-Fenster mit Live-Suche, Filter
+  (Alle/Seiten/Dateien), Vorschau-Pane und einem Detail-Viewer mit Tabs für
+  Text, HTML-Quelltext, Links und Metadaten. Für Dateien native Quick-Look-Vorschau.
 
 ---
 
@@ -41,19 +43,28 @@ sharepoint-scraper/
 │   ├── content.js          # Scraper für besuchte Seiten
 │   ├── popup.html / popup.js
 │   └── icon16.png / icon48.png / icon128.png
-├── app/                    # Python-Menüleisten-App
-│   ├── main.py             # rumps-App
-│   ├── server.py           # Lokaler HTTP-Server (127.0.0.1:8765)
+├── app/                    # Python-Backend (kein GUI mehr)
+│   ├── serve.py            # Headless-Einstiegspunkt (startet den HTTP-Server)
+│   ├── server.py           # Lokaler HTTP-Server (127.0.0.1:8765) + REST-API
 │   ├── db.py               # SQLite + FTS5 + Pfad-Logik
-│   ├── search_ui.py        # Haupt-Suchfenster
-│   ├── viewer.py           # Detail-Viewer (Text / HTML / Links / Info)
-│   ├── search_ui_launcher.py
-│   ├── menubar.png         # Template-Icon für die Menüleiste
-│   ├── app_icon.png        # App-Icon (512×512)
+│   ├── app_icon.png        # App-Icon (für Memex.app)
 │   └── requirements.txt
-├── install.sh              # Installer (venv + optional launchd)
+├── macos/                  # Native SwiftUI-App (Memex.app)
+│   ├── Package.swift       # Swift Package (macOS 15+)
+│   ├── Sources/Memex/      # MemexApp, SearchView, DetailView, APIClient, …
+│   ├── Resources/          # CGI-Logo fürs Impressum
+│   ├── Info.plist          # LSUIElement (reine Menüleisten-App)
+│   ├── build_app.sh        # baut das .app-Bundle (inkl. eingebettetem Backend)
+│   └── make_dmg.sh         # verpackt die App in ein teilbares DMG
+├── install.sh              # Dev-Installer (venv mit Extraktions-Libs, optional launchd)
 └── README.md
 ```
+
+> **Self-contained:** In `Memex.app` ist das Python-Backend eingebettet
+> (`Contents/Resources/backend/`). Die App nutzt einen auf dem System
+> vorhandenen `python3`; für das reine Speichern/Suchen genügt die
+> Python-Standardbibliothek. Deshalb lässt sich die App als DMG weitergeben,
+> ohne dass Empfänger etwas bauen müssen.
 
 ### Daten-Ablageort
 
@@ -78,21 +89,32 @@ In der DB landen:
 
 ## Installation
 
-### 1. Python-App installieren
+### 1. App installieren (DMG)
 
-cd sharepoint-scraper
-./install.sh
+1. **`Memex-<version>.dmg`** öffnen (Doppelklick).
+2. **Memex** in den **Programme**-Ordner ziehen (das Symbol ist im DMG-Fenster
+   neben der Verknüpfung sichtbar).
+3. Memex aus dem Programme-Ordner starten.
 
-Der Installer
-* legt ein venv in `~/Library/Application Support/Memex/venv` an,
-* installiert `rumps` plus optionale Text-Extraktoren
-  (`pypdf`, `python-docx`, `python-pptx`, `openpyxl`) und
-* fragt optional nach einem launchd-Autostart beim Login.
+**Beim ersten Start** (die App ist nicht über den App Store signiert):
+Rechtsklick auf *Memex* → **Öffnen** → im Dialog nochmals **Öffnen**.
+Alternativ einmalig im Terminal:
 
-Starten (falls du keinen Autostart eingerichtet hast):
-"$HOME/Library/Application Support/Memex/venv/bin/python" app/main.py
+    xattr -dr com.apple.quarantine "/Applications/Memex.app"
 
-In der Menüleiste erscheint ein schlichtes, monochromes „M".
+In der Menüleiste erscheint dann ein schlichtes „M". Das Suchfenster öffnet
+sich beim Start automatisch bzw. über **„Suche öffnen …"** im Menü.
+
+**Voraussetzung:** Auf dem Mac muss ein **Python 3** vorhanden sein (Memex
+bringt das Backend selbst mit und braucht dafür nur die Standardbibliothek).
+Falls keines installiert ist, meldet das Menü „Kein Python 3 gefunden"; dann
+einmalig `xcode-select --install` ausführen oder Python von
+[python.org](https://www.python.org) installieren.
+
+> *Optional – bessere Volltextsuche in Dateien:* Mit `pip3 install pypdf
+> python-docx python-pptx openpyxl` wird zusätzlich Text aus PDF/Office-Dateien
+> extrahiert. Ohne diese Pakete werden Dateien trotzdem gespeichert, nur ihr
+> Inhalt ist nicht durchsuchbar.
 
 ### 2. Chrome-Extension laden
 
@@ -111,6 +133,34 @@ Speichern registriert die Extension sich automatisch auch für diese Domains.
 Empfohlene Domains für den Anfang:
 groupecgi.sharepoint.com
 intranet.ent.cgi.com
+
+---
+
+## Für Entwickler – Build & Weitergabe
+
+Endnutzer brauchen das **nicht** – sie installieren nur das DMG (siehe oben).
+Zum Bauen werden Xcode bzw. die Command Line Tools benötigt (macOS 15+).
+
+```
+# App-Bundle bauen (inkl. eingebettetem Python-Backend)
+macos/build_app.sh            # -> macos/build/Memex.app
+macos/build_app.sh --install  # zusätzlich nach ~/Applications kopieren
+
+# Teilbares DMG erzeugen
+macos/make_dmg.sh             # -> macos/build/Memex-<version>.dmg
+```
+
+`build_app.sh` kopiert `app/db.py`, `app/server.py` und `app/serve.py` nach
+`Memex.app/Contents/Resources/backend/`; die App ist damit eigenständig.
+
+**Optionaler Dev-Installer** `./install.sh`: legt ein venv mit den
+Extraktions-Libs an, schreibt `~/Library/Application Support/Memex/backend.conf`
+(überschreibt für die Entwicklungsmaschine Python-Interpreter und serve.py-Pfad)
+und richtet optional einen launchd-Autostart ein.
+
+> **Signatur/Notarisierung:** Die App ist nur ad-hoc signiert (keine Apple
+> Developer ID). Beim ersten Start auf fremden Macs greift Gatekeeper – siehe
+> den Rechtsklick-→-Öffnen-Hinweis unter „App installieren".
 
 ---
 
@@ -197,26 +247,35 @@ Memex wurde entwickelt von:
 launchctl unload ~/Library/LaunchAgents/com.local.memex.plist 2>/dev/null || true
 rm -f ~/Library/LaunchAgents/com.local.memex.plist
 
-# 2) venv + Datenbank + Dateien löschen
+# 2) App entfernen
+rm -rf "/Applications/Memex.app" "$HOME/Applications/Memex.app"
+
+# 3) Datenbank + Dateien (und ggf. Dev-venv/backend.conf) löschen
 rm -rf "$HOME/Library/Application Support/Memex"
 
-# 3) (Optional) Alten Installationspfad löschen:
+# 4) (Optional) Alten Installationspfad löschen:
 rm -rf "$HOME/Library/Application Support/SharePointLocalScraper"
 
-# 4) Extension in chrome://extensions entfernen.
+# 5) Extension in chrome://extensions entfernen.
 
 ---
 
 ## Troubleshooting
 
+* **„Memex lässt sich nicht öffnen" / „nicht verifizierter Entwickler"** →
+  Beim ersten Start Rechtsklick auf *Memex* → **Öffnen**, oder einmalig
+  `xattr -dr com.apple.quarantine "/Applications/Memex.app"`.
 * **„Memex-App nicht erreichbar"** im Extension-Popup → App läuft nicht.
-  Starte sie manuell (`app/main.py`).
-* **Port 8765 belegt** → Ändere `HTTP_PORT` in `app/main.py` und
-  passe `LOCAL_BASE` in `chrome-extension/background.js` sowie die URLs
-  in `content.js`/`popup.js` an.
-* **Tkinter-Fenster öffnet nicht** → Unter macOS muss Python mit
-  Tk-Unterstützung installiert sein (Standard-`python3` von python.org oder
-  `brew install python-tk@3.12`).
+  Starte sie aus dem Programme-Ordner.
+* **Menüleisten-Eintrag zeigt „Kein Python 3 gefunden"** → Es ist kein `python3`
+  installiert. `xcode-select --install` ausführen oder Python von python.org
+  installieren, dann Memex neu starten.
+* **Menüleisten-Eintrag zeigt dauerhaft „Backend startet …"** → Das eingebettete
+  Backend antwortet nicht. Prüfe in der Konsole (Logs) bzw. starte die App neu.
+* **Port 8765 belegt** → Ändere `HTTP_PORT` in `app/serve.py`/`app/server.py`
+  und `APIClient.port` in `macos/Sources/Memex/APIClient.swift`; passe zudem
+  `LOCAL_BASE` in `chrome-extension/background.js` sowie die URLs in
+  `content.js`/`popup.js` an.
 * **SharePoint-Seiten werden nicht erfasst** → Extension im Entwicklermodus
   neu laden und die Konsole (DevTools → Service Worker) prüfen.
 * **Quick-Look öffnet sich nicht** → `qlmanage` ist Teil von macOS und immer
