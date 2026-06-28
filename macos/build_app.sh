@@ -21,6 +21,11 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/$APP_NAME"
 cp "$HERE/Info.plist" "$APP/Contents/Info.plist"
 
+# Lose Ressourcen (z. B. CGI-Logo fürs Impressum) ins Bundle übernehmen
+if [ -d "$HERE/Resources" ]; then
+  cp -R "$HERE/Resources/." "$APP/Contents/Resources/"
+fi
+
 # App-Icon (optional) aus app/app_icon.png erzeugen
 ICON_SRC="$HERE/../app/app_icon.png"
 if [ -f "$ICON_SRC" ]; then

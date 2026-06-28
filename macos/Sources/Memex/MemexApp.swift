@@ -28,6 +28,7 @@ struct MemexApp: App {
                     .font(.caption)
             }
             Divider()
+            Button("Über Memex / Impressum") { openAbout() }
             Button("Memex beenden") { NSApp.terminate(nil) }
                 .keyboardShortcut("q")
         }
@@ -48,11 +49,23 @@ struct MemexApp: App {
         WindowGroup("Detail", id: "detail", for: ItemRef.self) { $ref in
             if let ref { DetailView(ref: ref) }
         }
+
+        // Impressum / Info-Fenster.
+        Window("Info", id: "about") {
+            AboutView()
+        }
+        .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
     }
 
     private func openSearch() {
         NSApp.activate(ignoringOtherApps: true)
         openWindow(id: "search")
+    }
+
+    private func openAbout() {
+        NSApp.activate(ignoringOtherApps: true)
+        openWindow(id: "about")
     }
 }
 
