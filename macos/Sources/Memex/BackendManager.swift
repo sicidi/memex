@@ -2,11 +2,14 @@ import Foundation
 
 // Startet und überwacht das Python-Backend (serve.py) als Kindprozess.
 //
-// Pfade kommen aus  ~/Library/Application Support/Memex/backend.conf
-// (vom Installer geschrieben), Format:
-//     PYTHON=/…/venv/bin/python
-//     SERVE=/…/app/serve.py
-// Fällt sonst auf die Standard-venv und eine Suche relativ zum Repo zurück.
+// Self-contained: Das Backend (db.py/server.py/serve.py) ist ins App-Bundle
+// eingebettet (Contents/Resources/backend/). Als Python-Interpreter wird ein
+// auf dem System vorhandener python3 genutzt – das Backend braucht nur die
+// Standardbibliothek (die Text-Extraktions-Libs sind optional).
+//
+// Auf der Entwicklungsmaschine kann ~/Library/Application Support/Memex/
+// backend.conf (PYTHON=…, SERVE=…) beides überschreiben – z. B. um das venv
+// mit den Extraktions-Libs zu verwenden.
 @MainActor
 final class BackendManager: ObservableObject {
     static let shared = BackendManager()
@@ -15,6 +18,7 @@ final class BackendManager: ObservableObject {
     @Published var lastError: String?
 
     private var process: Process?
+    private var starting = false
     private let api = APIClient()
 
     private static var supportDir: URL {
@@ -22,50 +26,80 @@ final class BackendManager: ObservableObject {
             .appendingPathComponent("Library/Application Support/Memex")
     }
 
-    // MARK: Konfiguration
+    // MARK: Backend-Skript & Python finden
 
-    private struct Config { let python: String; let serve: String }
+    /// serve.py: bevorzugt das eingebettete Backend, sonst backend.conf (Dev).
+    private func resolveServeScript() -> String? {
+        if let res = Bundle.main.resourceURL {
+            let bundled = res.appendingPathComponent("backend/serve.py")
+            if FileManager.default.isReadableFile(atPath: bundled.path) { return bundled.path }
+        }
+        if let serve = readConf()["SERVE"], FileManager.default.isReadableFile(atPath: serve) {
+            return serve
+        }
+        return nil
+    }
 
-    private func loadConfig() -> Config? {
+    /// Python: bevorzugt backend.conf (venv inkl. Extraktions-Libs), sonst ein
+    /// auf dem System vorhandener python3.
+    private func resolvePython() -> String? {
+        if let py = readConf()["PYTHON"], FileManager.default.isExecutableFile(atPath: py) {
+            return py
+        }
+        let candidates = [
+            "/opt/homebrew/bin/python3",
+            "/usr/local/bin/python3",
+            "/Library/Frameworks/Python.framework/Versions/Current/bin/python3",
+            "/usr/bin/python3",
+        ]
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    private func readConf() -> [String: String] {
         let conf = Self.supportDir.appendingPathComponent("backend.conf")
-        var python = Self.supportDir.appendingPathComponent("venv/bin/python").path
-        var serve: String?
-        if let text = try? String(contentsOf: conf, encoding: .utf8) {
-            for line in text.split(whereSeparator: \.isNewline) {
-                let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
-                guard parts.count == 2 else { continue }
-                let key = parts[0].trimmingCharacters(in: .whitespaces)
-                let val = parts[1].trimmingCharacters(in: .whitespaces)
-                if key == "PYTHON" { python = val }
-                if key == "SERVE" { serve = val }
+        guard let text = try? String(contentsOf: conf, encoding: .utf8) else { return [:] }
+        var out: [String: String] = [:]
+        for line in text.split(whereSeparator: \.isNewline) {
+            let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
+            if parts.count == 2 {
+                out[parts[0].trimmingCharacters(in: .whitespaces)] =
+                    parts[1].trimmingCharacters(in: .whitespaces)
             }
         }
-        guard let serve, FileManager.default.isExecutableFile(atPath: python) else { return nil }
-        return Config(python: python, serve: serve)
+        return out
     }
 
     // MARK: Lebenszyklus
 
-    /// Stellt sicher, dass das Backend läuft: antwortet /ping bereits, wird
-    /// nichts gestartet (z. B. extern gestarteter serve.py). Sonst Kindprozess.
+    /// Stellt sicher, dass das Backend läuft. Idempotent + re-entrancy-fest:
+    /// gleichzeitige Aufrufe (AppDelegate + Fenster-Task) starten nicht doppelt.
     func ensureRunning() async {
+        if running || starting { return }
+        starting = true
+        defer { starting = false }
+
         if await isReachable() { running = true; return }
-        guard let cfg = loadConfig() else {
-            lastError = "backend.conf fehlt oder venv-Python nicht ausführbar – bitte install.sh ausführen."
-            running = false
-            return
+
+        guard let serve = resolveServeScript() else {
+            lastError = "Backend-Skript nicht gefunden (weder im App-Bundle noch via backend.conf)."
+            running = false; return
         }
+        guard let python = resolvePython() else {
+            lastError = "Kein Python 3 gefunden. Bitte Python 3 installieren " +
+                        "(z. B. ‚xcode-select --install‘ oder python.org)."
+            running = false; return
+        }
+
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: cfg.python)
-        proc.arguments = [cfg.serve]
-        proc.currentDirectoryURL = URL(fileURLWithPath: cfg.serve).deletingLastPathComponent()
+        proc.executableURL = URL(fileURLWithPath: python)
+        proc.arguments = [serve]
+        proc.currentDirectoryURL = URL(fileURLWithPath: serve).deletingLastPathComponent()
         do {
             try proc.run()
             process = proc
         } catch {
             lastError = "Backend-Start fehlgeschlagen: \(error.localizedDescription)"
-            running = false
-            return
+            running = false; return
         }
         // Auf Erreichbarkeit warten (max. ~5 s).
         for _ in 0..<25 {

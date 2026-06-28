@@ -26,6 +26,12 @@ if [ -d "$HERE/Resources" ]; then
   cp -R "$HERE/Resources/." "$APP/Contents/Resources/"
 fi
 
+# Python-Backend einbetten -> macht die App eigenständig (teilbar ohne Projektordner).
+# Es genügt die Standardbibliothek; die Extraktions-Libs sind optional.
+mkdir -p "$APP/Contents/Resources/backend"
+cp "$HERE/../app/db.py" "$HERE/../app/server.py" "$HERE/../app/serve.py" \
+   "$APP/Contents/Resources/backend/"
+
 # App-Icon (optional) aus app/app_icon.png erzeugen
 ICON_SRC="$HERE/../app/app_icon.png"
 if [ -f "$ICON_SRC" ]; then
