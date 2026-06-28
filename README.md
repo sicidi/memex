@@ -116,14 +116,18 @@ einmalig `xcode-select --install` ausführen oder Python von
 > extrahiert. Ohne diese Pakete werden Dateien trotzdem gespeichert, nur ihr
 > Inhalt ist nicht durchsuchbar.
 
-### 2. Chrome-Extension laden
+### 2. Chrome-Extension laden (nötig fürs Archivieren!)
 
-1. Öffne `chrome://extensions`.
-2. Aktiviere oben rechts den **Entwicklermodus**.
-3. Klicke auf **Entpackte Erweiterung laden** und wähle den Ordner
-   `chrome-extension`.
-4. In der Adressleiste erscheint das neue violette „M" → pinne die
-   Extension an.
+Ohne die Extension empfängt Memex keine Inhalte. Sie liegt **dem DMG bei**
+(Ordner `Memex Chrome-Extension`) bzw. im Repo unter `chrome-extension/`.
+
+1. Den Ordner `Memex Chrome-Extension` aus dem DMG an einen **festen Ort**
+   kopieren (z. B. nach *Dokumente*). **Nicht direkt vom DMG laden** – nach dem
+   Auswerfen wäre die Extension sonst weg.
+2. In Chrome `chrome://extensions` öffnen.
+3. Oben rechts den **Entwicklermodus** aktivieren.
+4. **Entpackte Erweiterung laden** klicken und den kopierten Ordner wählen.
+5. In der Adressleiste erscheint das violette „M" → die Extension anpinnen.
 
 ### 3. On-Premise-SharePoint konfigurieren (optional)
 
